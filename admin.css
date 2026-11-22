@@ -12,7 +12,8 @@
   --top: #e4e6e9;
   --bottom: #aeb2b8;
   --blob: rgba(28, 48, 88, .6);
-  --mark: .16;
+  --mark: .3;
+  --cardbg: rgba(250, 243, 232, .78);
 }
 
 [data-theme="dark"] {
@@ -25,7 +26,8 @@
   --top: #111a2c;
   --bottom: #070c16;
   --blob: rgba(60, 90, 150, .4);
-  --mark: .08;
+  --mark: .16;
+  --cardbg: rgba(24, 36, 61, .8);
 }
 
 * { box-sizing: border-box; }
@@ -54,7 +56,7 @@ body::before {
   filter: blur(28px);
 }
 body::after {
-  background: url(../images/logo-gc.png) center / min(75vmin, 520px) no-repeat;
+  background: url(logo-gc.png) center / min(75vmin, 520px) no-repeat;
   opacity: var(--mark);
 }
 
@@ -251,3 +253,6 @@ dialog p { margin: 0 0 18px; }
   .spin { animation: none; }
   .loader.go .meter i { animation-duration: .01s; }
 }
+
+/* cards are slightly see-through so the school logo shows behind them */
+.card, .stat, .tablewrap { background: var(--cardbg); }
