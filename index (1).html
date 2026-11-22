@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrintDrop | Send your file to the print shop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="images/logo-main.png">
+<link rel="stylesheet" href="css/user.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="logos">
+    <img src="images/logo-main.png" alt="Print Drop Printing Shop logo">
+    <img src="images/logo-gc.png" alt="Gordon College logo">
+  </div>
+  <div class="right">
+    <span>Made by KUPL</span>
+    <button type="button" id="theme" class="icon" aria-label="Switch to dark mode">&#9790;</button>
+  </div>
+</header>
+
+<main>
+  <img class="brand" src="images/logo-printdrop.png" alt="Print Drop">
+  <h1>Send your file to the print shop.</h1>
+  <p class="sub">Works on any phone or laptop, including iPhones. No Bluetooth, no flash drive. Pay and pick up at the shop.</p>
+
+  <form id="form" class="card" novalidate>
+    <h2>1. Choose your file</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".pdf,.doc,.docx,.ppt,.pptx,image/*">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/></svg>
+      <b>Tap to choose a file or drop it here</b>
+      <small>PDF, DOCX, PPTX or image &bull; up to 24 MB</small>
+      <span class="fname" id="fname"></span>
+    </label>
+
+    <h2>2. Your details</h2>
+    <div class="row r2">
+      <div><label for="name">Full name</label><input type="text" id="name" autocomplete="name"></div>
+      <div><label for="sid">Student ID</label><input type="text" id="sid"></div>
+    </div>
+
+    <h2>3. Print settings</h2>
+    <div class="row r5">
+      <div class="wide">
+        <label for="paper">Paper size</label>
+        <select id="paper">
+          <option value="" selected disabled></option>
+          <option>Long (8&times;13)</option>
+          <option>A4</option>
+          <option>Short (8&times;11)</option>
+        </select>
+      </div>
+      <div><label for="pages">Number of pages</label><input type="number" id="pages" min="1" max="500"></div>
+      <div><label for="copies">Copies</label><input type="number" id="copies" min="1" max="100"></div>
+      <fieldset>
+        <legend>Color</legend>
+        <label class="opt"><input type="radio" name="color" value="bw" checked> Black &amp; White</label>
+        <label class="opt"><input type="radio" name="color" value="color"> Full color</label>
+      </fieldset>
+      <fieldset>
+        <legend>Sides</legend>
+        <label class="opt"><input type="radio" name="sides" value="One-sided" checked> One-sided</label>
+        <label class="opt"><input type="radio" name="sides" value="Two-sided"> Two-sided</label>
+      </fieldset>
+    </div>
+
+    <label for="notes">Notes for the print shop (optional)</label>
+    <input type="text" id="notes">
+
+    <label class="opt notify"><input type="checkbox" id="notify" checked> Notify me when my file is ready for pickup</label>
+
+    <p class="err" id="err" role="alert"></p>
+
+    <div class="buy">
+      <div class="price"><small>Estimated price (pay at the shop)</small><b id="price">&#8369;0.00</b></div>
+      <button type="submit" class="btn">Send to print shop</button>
+    </div>
+  </form>
+
+  <section class="card">
+    <h2>Track your order</h2>
+    <div class="track">
+      <div><label for="qn">Queue number</label><input type="number" id="qn" min="1"></div>
+      <button type="button" class="btn" id="track">Check status</button>
+    </div>
+    <div id="result" aria-live="polite"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast hide" role="alert"></div>
+
+<dialog id="done">
+  <h2>Request sent!</h2>
+  <p>Your queue number</p>
+  <p class="qnum" id="qnum">001</p>
+  <p id="dinfo"></p>
+  <p>Keep this number to check your status.</p>
+  <button type="button" class="btn" id="ok">OK</button>
+</dialog>
+
+<script src="js/user.js"></script>
+</body>
+</html>
