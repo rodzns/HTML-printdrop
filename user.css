@@ -41,24 +41,18 @@ body {
   background: linear-gradient(var(--top), var(--bottom)) fixed;
 }
 
-/* blurry blobs + faded school logo behind everything */
-body::before, body::after {
+/* blurry blobs behind everything */
+body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-}
-body::before {
   background:
     radial-gradient(circle at 5% 8%, var(--blob) 0 14%, transparent 15%),
     radial-gradient(circle at 97% 25%, var(--blob) 0 16%, transparent 17%),
     radial-gradient(circle at 10% 95%, var(--blob) 0 18%, transparent 19%);
   filter: blur(28px);
-}
-body::after {
-  background: url(logo-gc.png) center / min(75vmin, 520px) no-repeat;
-  opacity: var(--mark);
 }
 
 /* header */
@@ -244,3 +238,20 @@ dialog .btn { margin-top: 12px; width: 100%; }
 
 /* cards are slightly see-through so the school logo shows behind them */
 .card { background: var(--cardbg); }
+
+/* big faded school logo behind the page */
+.watermark {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: min(75vmin, 520px);
+  height: auto;
+  transform: translate(-50%, -50%);
+  opacity: var(--mark);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* heading text: navy in light mode, white in dark mode */
+h1, .sub { color: var(--ink); text-shadow: none; }
+[data-theme="dark"] h1, [data-theme="dark"] .sub { color: #fff; text-shadow: 0 2px 8px rgba(8, 20, 50, .8); }
