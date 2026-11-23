@@ -1,257 +1,257 @@
-/* PrintDrop - student page. Made by KUPL */
+// PrintDrop - student page. Made by KUPL
 
-:root {
-  --navy: #12274b;
-  --orange: #ff8c1a;
-  --stripe: #f2a10d;
-  --card: #faf3e8;
-  --field: #fffaf2;
-  --ink: #10285a;
-  --line: #111;
-  --err: #c0261c;
-  --top: #e4e6e9;
-  --bottom: #aeb2b8;
-  --blob: rgba(28, 48, 88, .6);
-  --mark: .3;
-  --cardbg: rgba(250, 243, 232, .78);
+const KEY = 'printdrop_orders';   // the admin page reads the same key
+const RATES = {                   // price per page (change these to match the shop)
+  'Long (8×13)':  { bw: 3, color: 15 },
+  'A4':           { bw: 2, color: 10 },
+  'Short (8×11)': { bw: 2, color: 10 }
+};
+const STEPS = ['Received', 'Printing', 'Ready for Pickup'];
+
+const $ = id => document.getElementById(id);
+let chosenFile = null;
+const baseTitle = document.title;
+
+/* ---------- dark mode ---------- */
+const root = document.documentElement;
+const themeBtn = $('theme');
+
+function setTheme(mode) {
+  root.dataset.theme = mode;
+  themeBtn.innerHTML = mode === 'dark' ? '&#9728;' : '&#9790;';
+  themeBtn.setAttribute('aria-label', mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  try { localStorage.setItem('pd_theme', mode); } catch (e) {}
 }
 
-[data-theme="dark"] {
-  --navy: #0a1630;
-  --card: #18243d;
-  --field: #101a2e;
-  --ink: #e9eefb;
-  --line: #8798bd;
-  --err: #ff8f86;
-  --top: #111a2c;
-  --bottom: #070c16;
-  --blob: rgba(60, 90, 150, .4);
-  --mark: .16;
-  --cardbg: rgba(24, 36, 61, .8);
+let saved = null;
+try { saved = localStorage.getItem('pd_theme'); } catch (e) {}
+setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+themeBtn.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+/* ---------- saved orders ---------- */
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { n: 0, orders: [] }; }
+  catch (e) { return { n: 0, orders: [] }; }
+}
+function saveData(d) {
+  try { localStorage.setItem(KEY, JSON.stringify(d)); return true; }
+  catch (e) { return false; }
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+const peso = n => '₱' + n.toFixed(2);
+const pad = n => String(n).padStart(3, '0');
+
+/* ---------- files are kept in IndexedDB (localStorage is too small for 24 MB) ---------- */
+function openDB() {
+  return new Promise((ok, fail) => {
+    const r = indexedDB.open('printdrop_files', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => fail(r.error);
+  });
+}
+function fileStore(mode, fn) {
+  return openDB().then(db => new Promise((ok, fail) => {
+    const t = db.transaction('files', mode);
+    const req = fn(t.objectStore('files'));
+    t.oncomplete = () => ok(req && req.result);
+    t.onerror = () => fail(t.error);
+  }));
 }
 
-* { box-sizing: border-box; }
-.hide { display: none !important; }
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: Poppins, system-ui, sans-serif;
-  color: var(--ink);
-  background: linear-gradient(var(--top), var(--bottom)) fixed;
+// random queue number that no other request is using
+function newId() {
+  const used = new Set(loadData().orders.map(o => o.id));
+  const digits = used.size >= 800 ? 4 : 3;
+  const min = Math.pow(10, digits - 1), span = 9 * min;
+  let id;
+  do { id = min + Math.floor(Math.random() * span); } while (used.has(id));
+  return id;
 }
 
-/* blurry blobs behind everything */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 5% 8%, var(--blob) 0 14%, transparent 15%),
-    radial-gradient(circle at 97% 25%, var(--blob) 0 16%, transparent 17%),
-    radial-gradient(circle at 10% 95%, var(--blob) 0 18%, transparent 19%);
-  filter: blur(28px);
+/* ---------- price ---------- */
+function getColor() { return document.querySelector('[name=color]:checked').value; }
+function getSides() { return document.querySelector('[name=sides]:checked').value; }
+
+function price() {
+  const rate = RATES[$('paper').value];
+  const pages = +$('pages').value, copies = +$('copies').value;
+  if (!rate || pages < 1 || copies < 1) return 0;
+  return pages * copies * rate[getColor()];
+}
+function showPrice() { $('price').textContent = peso(price()); }
+
+['paper', 'pages', 'copies'].forEach(id => $(id).addEventListener('input', showPrice));
+document.querySelectorAll('[name=color]').forEach(r => r.addEventListener('change', showPrice));
+
+/* ---------- choosing a file ---------- */
+function pickFile(f) {
+  $('err').textContent = '';
+  if (!f) return;
+  if (f.size > 24 * 1024 * 1024) {
+    $('err').textContent = 'That file is over 24 MB. Choose a smaller file.';
+    return;
+  }
+  chosenFile = f;
+  $('fname').textContent = f.name;
 }
 
-/* header */
-.top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px clamp(12px, 3vw, 32px);
-  background: var(--navy);
-  border-bottom: 6px solid var(--stripe);
-  color: #fff;
-}
-.logos { display: flex; gap: 10px; }
-.logos img { height: clamp(40px, 7vw, 58px); width: auto; }
-.right { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: clamp(.8rem, 2.5vw, 1rem); }
-.icon {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: transparent;
-  color: #fff;
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-.icon:hover { background: rgba(255, 255, 255, .15); }
+$('file').addEventListener('change', e => pickFile(e.target.files[0]));
 
-/* page */
-main { max-width: 920px; margin: 0 auto; padding: 14px 16px 48px; }
-.brand { display: block; width: clamp(120px, 22vw, 190px); height: auto; }
-[data-theme="dark"] .brand { background: #faf3e8; padding: 6px 12px; border-radius: 10px; }
+const drop = $('drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => pickFile(e.dataTransfer.files[0]));
 
-h1, .sub { color: #fff; text-align: center; text-shadow: 0 2px 8px rgba(8, 20, 50, .8); }
-h1 { margin: 8px 0 4px; font-size: clamp(1.5rem, 5.5vw, 2.4rem); }
-.sub { margin: 0 auto 22px; max-width: 700px; font-size: clamp(.85rem, 2.4vw, 1rem); }
+/* ---------- sending the request ---------- */
+function saveOrder(id, hasFile) {
+  const d = loadData();
+  const order = {
+    id: id,
+    name: $('name').value.trim(),
+    sid: $('sid').value.trim(),
+    file: chosenFile.name,
+    size: chosenFile.size,
+    paper: $('paper').value,
+    pages: +$('pages').value,
+    copies: +$('copies').value,
+    color: getColor() === 'color' ? 'Full color' : 'Black & White',
+    sides: getSides(),
+    notes: $('notes').value.trim(),
+    price: price(),
+    status: 'Received',
+    time: Date.now(),
+    hasFile: hasFile,
+    notify: $('notify').checked
+  };
+  d.orders.push(order);
 
-.card {
-  background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 14px;
-  padding: clamp(14px, 3vw, 22px);
-  margin-bottom: 16px;
-}
-h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  if (!saveData(d)) {
+    $('err').textContent = 'Could not save your request. Try again.';
+    return;
+  }
 
-/* upload box */
-.drop {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 22px 12px;
-  margin: 0 0 18px;
-  border: 2px solid var(--line);
-  border-radius: 14px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.drop svg { width: 42px; height: 42px; stroke: var(--orange); }
-.drop small { font-size: .75rem; font-weight: 400; }
-.drop.over, .drop:focus-within { outline: 3px solid var(--orange); }
-.fname { margin-top: 6px; font-weight: 600; color: var(--orange); word-break: break-all; }
-
-/* form fields */
-label, legend { display: block; margin-bottom: 4px; padding: 0; font-size: .8rem; font-weight: 600; }
-input[type="text"], input[type="number"], select {
-  width: 100%;
-  font: inherit;
-  font-size: .9rem;
-  padding: 10px 12px;
-  color: var(--ink);
-  background: var(--field);
-  border: 2px solid var(--line);
-  border-radius: 10px;
-}
-select {
-  appearance: none;
-  padding-right: 36px;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
-  background-size: 6px 6px;
-  background-repeat: no-repeat;
-  font-weight: 600;
-}
-option { background: var(--card); color: var(--ink); }
-input:focus-visible, select:focus-visible, .btn:focus-visible, .icon:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
-
-.row { display: grid; gap: 14px; margin-bottom: 16px; }
-.r2 { grid-template-columns: 1fr 1fr; }
-.r5 { grid-template-columns: 2fr 1.2fr 1fr 1.3fr 1.3fr; }
-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.opt { display: flex; align-items: center; gap: 8px; margin: 7px 0; font-size: .85rem; cursor: pointer; }
-.opt input { width: 18px; height: 18px; margin: 0; accent-color: var(--orange); }
-
-.err { min-height: 1.3em; margin: 8px 0 0; color: var(--err); font-weight: 600; font-size: .85rem; }
-
-/* price + button */
-.buy {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 8px;
-  padding-top: 14px;
-  border-top: 2px solid var(--line);
-}
-.price small { display: block; font-weight: 600; font-size: .85rem; }
-.price b { font-size: 1.6rem; }
-.btn {
-  font: inherit;
-  font-weight: 600;
-  color: #fff;
-  background: var(--orange);
-  border: 0;
-  border-radius: 10px;
-  padding: 11px 28px;
-  cursor: pointer;
-}
-.btn:hover { filter: brightness(1.08); }
-
-/* track */
-.track { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: end; }
-#result { margin-top: 14px; }
-#result p { margin: 4px 0; }
-.badge { display: inline-block; padding: 2px 12px; border-radius: 99px; background: var(--orange); color: #fff; font-weight: 600; font-size: .85rem; }
-.steps { display: flex; gap: 6px; margin: 10px 0 6px; }
-.steps i { flex: 1; height: 8px; border-radius: 4px; background: var(--line); opacity: .35; }
-.steps i.on { background: var(--orange); opacity: 1; }
-
-/* "request sent" popup */
-dialog {
-  max-width: 340px;
-  width: calc(100% - 32px);
-  text-align: center;
-  color: var(--ink);
-  background: var(--card);
-  border: 3px solid var(--line);
-  border-radius: 16px;
-  padding: 22px;
-}
-dialog::backdrop { background: rgba(5, 12, 30, .65); }
-dialog p { margin: 4px 0; }
-.qnum { font-size: 3.4rem; font-weight: 700; line-height: 1.2; color: var(--orange); }
-dialog .btn { margin-top: 12px; width: 100%; }
-
-/* "ready for pickup" alert */
-.notify { margin: 14px 0 0; }
-.toast {
-  position: fixed;
-  left: 50%;
-  top: 84px;
-  transform: translateX(-50%);
-  z-index: 20;
-  width: min(420px, calc(100% - 24px));
-  padding: 14px 16px;
-  text-align: center;
-  font-weight: 600;
-  color: #fff;
-  background: var(--orange);
-  border: 3px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-  cursor: pointer;
+  addList(MINE, order.id);   // remember this request belongs to this device
+  $('qnum').textContent = pad(order.id);
+  $('dinfo').textContent = order.file + ' · ' + peso(order.price);
+  $('done').showModal();
+  $('qn').value = order.id;
 }
 
-/* tablets */
-@media (max-width: 820px) {
-  .r5 { grid-template-columns: 1fr 1fr; }
-  .r5 .wide { grid-column: 1 / -1; }
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const err = $('err');
+  if (!chosenFile) { err.textContent = 'Choose a file to print.'; return; }
+  if (!$('name').value.trim() || !$('sid').value.trim()) { err.textContent = 'Enter your full name and student ID.'; return; }
+  if (!$('paper').value) { err.textContent = 'Choose a paper size.'; return; }
+  if (!(+$('pages').value >= 1) || !(+$('copies').value >= 1)) { err.textContent = 'Number of pages and copies must be at least 1.'; return; }
+  err.textContent = '';
+  if ($('notify').checked) askPermission();   // must happen on the tap
+
+  // keep the file for the print shop, then save the request
+  const id = newId();
+  fileStore('readwrite', s => s.put(chosenFile, id))
+    .then(() => saveOrder(id, true))
+    .catch(() => saveOrder(id, false));
+});
+
+$('ok').addEventListener('click', () => {
+  $('done').close();
+  $('form').reset();
+  chosenFile = null;
+  $('fname').textContent = '';
+  showPrice();
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+});
+
+/* ---------- tracking ---------- */
+function showStatus() {
+  const n = +$('qn').value;
+  const order = loadData().orders.find(o => o.id === n);
+  const box = $('result');
+  if (!order) {
+    box.innerHTML = '<p class="err">No request found with that queue number.</p>';
+    return;
+  }
+  const at = Math.max(0, STEPS.indexOf(order.status));
+  const msg = [
+    'The print shop has received your file.',
+    'The print shop is printing your file.',
+    'Your file is ready. Pay and pick it up at the shop.'
+  ][at];
+  box.innerHTML =
+    '<p><b>#' + pad(order.id) + '</b> &bull; ' + esc(order.file) + '</p>' +
+    '<p><span class="badge">' + order.status + '</span></p>' +
+    '<div class="steps">' + STEPS.map((s, i) => '<i class="' + (i <= at ? 'on' : '') + '" title="' + s + '"></i>').join('') + '</div>' +
+    '<p>' + msg + '</p>';
 }
 
-/* phones */
-@media (max-width: 520px) {
-  .r2 { grid-template-columns: 1fr; }
-  .buy { flex-direction: column; align-items: stretch; }
-  .btn { width: 100%; padding: 13px; }
-  .track { grid-template-columns: 1fr; }
+$('track').addEventListener('click', showStatus);
+$('qn').addEventListener('keydown', e => { if (e.key === 'Enter') showStatus(); });
+window.addEventListener('storage', () => { if ($('qn').value) showStatus(); });
+
+/* ---------- "ready for pickup" notifications ---------- */
+const MINE = 'pd_mine';        // requests sent from this device
+const SEEN = 'pd_notified';    // requests we already notified about
+
+function getList(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch (e) { return []; }
+}
+function addList(key, id) {
+  const list = getList(key);
+  if (!list.includes(id)) {
+    list.push(id);
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) {}
+  }
 }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-/* cards are slightly see-through so the school logo shows behind them */
-.card { background: var(--cardbg); }
-
-/* big faded school logo behind the page */
-.watermark {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  width: min(75vmin, 520px);
-  height: auto;
-  transform: translate(-50%, -50%);
-  opacity: var(--mark);
-  z-index: -1;
-  pointer-events: none;
+// a service worker lets phones show real notifications (needs https or localhost)
+let swReg = null;
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(() => {});
 }
 
-/* heading text: navy in light mode, white in dark mode */
-h1, .sub { color: var(--ink); text-shadow: none; }
-[data-theme="dark"] h1, [data-theme="dark"] .sub { color: #fff; text-shadow: 0 2px 8px rgba(8, 20, 50, .8); }
+function askPermission() {
+  if (!('Notification' in window) || Notification.permission !== 'default') return;
+  try { Notification.requestPermission(); } catch (e) {}
+}
+
+function showToast(msg) {
+  $('toast').textContent = msg;
+  $('toast').classList.remove('hide');
+}
+$('toast').addEventListener('click', () => {
+  $('toast').classList.add('hide');
+  document.title = baseTitle;
+});
+
+function notifyReady(order) {
+  const title = 'Your file is ready!';
+  const body = 'Queue #' + pad(order.id) + ' (' + order.file + ') is ready for pickup at the print shop.';
+  showToast(title + ' ' + body);                 // always shown on the page
+  document.title = '(1) Ready for pickup | PrintDrop';
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const opts = { body: body, icon: 'logo-main.png', tag: 'pd-' + order.id };
+    if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
+    else { try { new Notification(title, opts); } catch (e) {} }
+  }
+}
+
+function checkReady() {
+  const mine = getList(MINE), seen = getList(SEEN);
+  loadData().orders.forEach(o => {
+    if (mine.includes(o.id) && o.notify && o.status === 'Ready for Pickup' && !seen.includes(o.id)) {
+      addList(SEEN, o.id);
+      notifyReady(o);
+    }
+  });
+}
+setInterval(checkReady, 4000);
+window.addEventListener('storage', checkReady);
+checkReady();
+
+showPrice();
