@@ -112,7 +112,7 @@ function render() {
       <td data-label="Queue"><b>#${pad(o.id)}</b></td>
       <td data-label="Student">${esc(o.name)}<br><small>${esc(o.sid)}</small></td>
       <td data-label="File">${esc(o.file)}<br><small>${Math.max(1, Math.round(o.size / 1024))} KB</small></td>
-      <td data-label="Print settings">${esc(o.paper)} &bull; ${o.pages} page(s) x ${o.copies}<br>${o.color} &bull; ${o.sides}${o.notes ? '<br><small>Note: ' + esc(o.notes) + '</small>' : ''}</td>
+      <td data-label="Print settings">${esc(o.paper)} &bull; ${+o.pages} page(s) x ${+o.copies}<br>${esc(o.color)} &bull; ${esc(o.sides)}${o.notes ? '<br><small>Note: ' + esc(o.notes) + '</small>' : ''}</td>
       <td data-label="Price">${peso(o.price)}</td>
       <td data-label="Status">
         <select class="st" data-id="${o.id}" aria-label="Status for queue ${pad(o.id)}">
@@ -157,7 +157,7 @@ $('rows').addEventListener('click', e => {
       a.download = order.file;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    });
+    }).catch(() => alert('Could not open the saved file.'));
   }
   if (e.target.classList.contains('rm')) {
     deleteId = id;
