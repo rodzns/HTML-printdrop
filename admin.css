@@ -54,7 +54,7 @@ body::before {
   filter: blur(28px);
 }
 body::after {
-  background: url(../images/logo-gc.png) center / min(75vmin, 520px) no-repeat;
+  background: url(logo-gc.png) center / min(75vmin, 520px) no-repeat;
   opacity: var(--mark);
 }
 
@@ -156,8 +156,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px clamp(12px, 3vw, 28px) 4
   margin: 0;
   font-family: 'Archivo Black', Roboto, sans-serif;
   font-size: clamp(1.8rem, 5vw, 2.8rem);
-  color: #fff;
-  text-shadow: 0 2px 8px rgba(8, 20, 50, .8);
+  color: var(--ink);
 }
 
 .status-row { display: flex; align-items: center; gap: 24px; margin: 14px 0 22px; }
