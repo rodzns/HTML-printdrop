@@ -40,7 +40,7 @@ function saveData(d) {
 function esc(s) {
   return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
-const peso = n => '₱' + n.toFixed(2);
+const peso = n => '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pad = n => String(n).padStart(3, '0');
 
 /* ---------- files are kept in IndexedDB (localStorage is too small for 24 MB) ---------- */
@@ -90,6 +90,10 @@ document.querySelectorAll('[name=color]').forEach(r => r.addEventListener('chang
 function pickFile(f) {
   $('err').textContent = '';
   if (!f) return;
+  if (!/\.(pdf|docx?|pptx?|jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(f.name) && !f.type.startsWith('image/')) {
+    $('err').textContent = 'Only PDF, DOCX, PPTX or image files are allowed.';
+    return;
+  }
   if (f.size > 24 * 1024 * 1024) {
     $('err').textContent = 'That file is over 24 MB. Choose a smaller file.';
     return;
@@ -130,6 +134,7 @@ function saveOrder(id, hasFile) {
 
   if (!saveData(d)) {
     $('err').textContent = 'Could not save your request. Try again.';
+    if (hasFile) fileStore('readwrite', s => s.delete(id)).catch(() => {});
     return;
   }
 
@@ -146,15 +151,20 @@ $('form').addEventListener('submit', e => {
   if (!chosenFile) { err.textContent = 'Choose a file to print.'; return; }
   if (!$('name').value.trim() || !$('sid').value.trim()) { err.textContent = 'Enter your full name and student ID.'; return; }
   if (!$('paper').value) { err.textContent = 'Choose a paper size.'; return; }
-  if (!(+$('pages').value >= 1) || !(+$('copies').value >= 1)) { err.textContent = 'Number of pages and copies must be at least 1.'; return; }
+  const pg = +$('pages').value, cp = +$('copies').value;
+  if (!Number.isInteger(pg) || !Number.isInteger(cp) || pg < 1 || cp < 1) { err.textContent = 'Number of pages and copies must be whole numbers, at least 1.'; return; }
+  if (pg > 500 || cp > 100) { err.textContent = 'Maximum is 500 pages and 100 copies.'; return; }
   err.textContent = '';
   if ($('notify').checked) askPermission();   // must happen on the tap
 
   // keep the file for the print shop, then save the request
   const id = newId();
+  const btn = $('form').querySelector('button[type=submit]');
+  btn.disabled = true;   // no double submit
   fileStore('readwrite', s => s.put(chosenFile, id))
-    .then(() => saveOrder(id, true))
-    .catch(() => saveOrder(id, false));
+    .then(() => true, () => false)
+    .then(ok => saveOrder(id, ok))
+    .finally(() => { btn.disabled = false; });
 });
 
 $('ok').addEventListener('click', () => {
@@ -183,7 +193,7 @@ function showStatus() {
   ][at];
   box.innerHTML =
     '<p><b>#' + pad(order.id) + '</b> &bull; ' + esc(order.file) + '</p>' +
-    '<p><span class="badge">' + order.status + '</span></p>' +
+    '<p><span class="badge">' + esc(order.status) + '</span></p>' +
     '<div class="steps">' + STEPS.map((s, i) => '<i class="' + (i <= at ? 'on' : '') + '" title="' + s + '"></i>').join('') + '</div>' +
     '<p>' + msg + '</p>';
 }
@@ -235,7 +245,7 @@ function notifyReady(order) {
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
 
   if ('Notification' in window && Notification.permission === 'granted') {
-    const opts = { body: body, icon: 'images/logo-main.png', tag: 'pd-' + order.id };
+    const opts = { body: body, icon: 'logo-main.png', tag: 'pd-' + order.id };
     if (swReg && swReg.showNotification) swReg.showNotification(title, opts);
     else { try { new Notification(title, opts); } catch (e) {} }
   }
